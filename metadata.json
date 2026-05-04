@@ -1,0 +1,6 @@
+{
+  "name": "Prime Harmonic",
+  "description": "An interactive 3D math visualization and AI-driven sonification platform exploring the distribution and patterns of prime numbers.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
