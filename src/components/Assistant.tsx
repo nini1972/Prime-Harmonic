@@ -1,10 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Send, Zap, BookOpen, Brain } from 'lucide-react';
+import { Send, Brain } from 'lucide-react';
 import { cn } from '../lib/utils';
-
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 interface Message {
   role: 'user' | 'assistant';
@@ -16,6 +14,9 @@ interface AssistantProps {
 }
 
 export const Assistant = ({ currentPrime }: AssistantProps) => {
+  const apiKey = ((import.meta as any).env?.VITE_GEMINI_API_KEY ?? (import.meta as any).env?.GEMINI_API_KEY ?? '').trim();
+  const modelName = ((import.meta as any).env?.VITE_GEMINI_MODEL ?? 'gemini-2.5-flash').trim();
+  const aiRef = useRef<GoogleGenAI | null>(apiKey ? new GoogleGenAI({ apiKey }) : null);
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', content: 'AGENT LOG: Sequence initialized. Awaiting vector input for spatiotemporal analysis.' }
   ]);
@@ -29,6 +30,13 @@ export const Assistant = ({ currentPrime }: AssistantProps) => {
     }
   }, [messages]);
 
+  const createLocalReply = (query: string) => {
+    if (!currentPrime) {
+      return `ANALYSIS: Offline mode active. Select a prime first, then ask about patterns, gaps, or prime types for contextual guidance.`;
+    }
+    return `ANALYSIS: Offline mode active. Prime ${currentPrime} is currently focused. I can still guide exploration of twin-prime behavior, local gap structure, and coordinate trends without Gemini connectivity. Query received: "${query}".`;
+  };
+
   const handleSend = async () => {
     if (!input.trim() || loading) return;
     
@@ -38,8 +46,13 @@ export const Assistant = ({ currentPrime }: AssistantProps) => {
     setLoading(true);
 
     try {
-      const response = await genAI.models.generateContent({
-        model: "gemini-3-flash-preview",
+      if (!aiRef.current) {
+        setMessages(prev => [...prev, { role: 'assistant', content: createLocalReply(userMsg.content) }]);
+        return;
+      }
+
+      const response = await aiRef.current.models.generateContent({
+        model: modelName,
         contents: [...messages, userMsg].map(m => m.content).join('\n'),
         config: {
           systemInstruction: `You are a mathematical assistant specialized in number theory and primes. 
@@ -53,7 +66,7 @@ export const Assistant = ({ currentPrime }: AssistantProps) => {
 
       setMessages(prev => [...prev, { role: 'assistant', content: `ANALYSIS: ${response.text || 'Process timeout.'}` }]);
     } catch (error) {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'SYSTEM ERROR: Buffer overflow in number stream.' }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: 'SYSTEM ERROR: Gemini request failed. Continuing in local analysis mode.' }]);
     } finally {
       setLoading(false);
     }
@@ -68,6 +81,11 @@ export const Assistant = ({ currentPrime }: AssistantProps) => {
         </div>
         <span className="text-[9px] text-neutral-600">ID: 412-PRIME</span>
       </div>
+      {!aiRef.current && (
+        <div className="px-3 py-2 border-b border-neutral-800 text-[9px] uppercase tracking-wider text-amber-400 bg-amber-500/10">
+          Gemini unavailable: set VITE_GEMINI_API_KEY for cloud responses.
+        </div>
+      )}
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
         <AnimatePresence>

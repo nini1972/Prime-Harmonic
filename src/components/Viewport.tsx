@@ -120,12 +120,7 @@ export const Viewport = ({ limit, activeId, onPointClick }: ViewportProps) => {
           
           <line>
             <bufferGeometry>
-              <bufferAttribute 
-                attach="attributes-position"
-                count={primePoints.length}
-                array={linePoints}
-                itemSize={3}
-              />
+              <bufferAttribute attach="attributes-position" args={[linePoints, 3]} />
             </bufferGeometry>
             <lineBasicMaterial color="#06b6d4" transparent opacity={0.1} />
           </line>

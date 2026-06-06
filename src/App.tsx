@@ -1,19 +1,22 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Viewport } from './components/Viewport';
 import { Assistant } from './components/Assistant';
 import { audioEngine } from './lib/audio';
 import { motion } from 'motion/react';
-import { Play, Volume2, Info, Maximize, Activity, Share2 } from 'lucide-react';
-import { getPrimeType, getUlamCoordinates } from './lib/math';
+import { Activity, Share2 } from 'lucide-react';
+import { getPrimeType, getPrimes, getUlamCoordinates } from './lib/math';
 
-const MemoizedViewport = React.memo(Viewport);
+type WorkspaceView = 'visualization' | 'patterns' | 'theory';
 
 export default function App() {
   const [activePrime, setActivePrime] = useState<number | null>(null);
   const [limit, setLimit] = useState(500);
   const [audioStarted, setAudioStarted] = useState(false);
+  const [activeView, setActiveView] = useState<WorkspaceView>('visualization');
+  const [spectrum, setSpectrum] = useState<number[]>(Array(12).fill(0));
 
   const activeTypes = useMemo(() => activePrime ? getPrimeType(activePrime) : [], [activePrime]);
+  const primes = useMemo(() => getPrimes(limit), [limit]);
 
   const activeCoords = useMemo(() => {
     if (!activePrime) return { x: 0, y: 0, z: 0 };
@@ -21,14 +24,63 @@ export default function App() {
     return { x, y, z };
   }, [activePrime]);
 
+  const stats = useMemo(() => {
+    const primeCount = primes.length;
+    const gaps = primes.slice(1).map((p, i) => p - primes[i]);
+    const avgGap = gaps.length ? gaps.reduce((a, b) => a + b, 0) / gaps.length : 0;
+    const twinCount = primes.filter((p) => primes.includes(p + 2)).length;
+    return {
+      primeCount,
+      avgGap,
+      twinCount,
+      maxPrime: primeCount ? primes[primeCount - 1] : 0,
+    };
+  }, [primes]);
+
+  const startAudio = useCallback(async () => {
+    const started = await audioEngine.start();
+    setAudioStarted(started);
+    return started;
+  }, []);
+
   const handlePointClick = useCallback((n: number) => {
     setActivePrime(n);
-    if (!audioStarted) {
-      audioEngine.start();
-      setAudioStarted(true);
-    }
-    audioEngine.playPrime(n);
-  }, [audioStarted]);
+    void (async () => {
+      if (!audioEngine.isStarted()) {
+        const started = await startAudio();
+        if (!started) return;
+      }
+      audioEngine.playPrime(n);
+    })();
+  }, [startAudio]);
+
+  const handleExportData = useCallback(() => {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      limit,
+      activePrime,
+      primes: primes.map((n) => ({
+        n,
+        coordinates: getUlamCoordinates(n),
+        types: getPrimeType(n),
+      })),
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `prime-harmonic-export-${limit}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [activePrime, limit, primes]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setSpectrum(audioEngine.getSpectrumBins(12));
+    }, 120);
+    return () => window.clearInterval(timer);
+  }, []);
 
   return (
     <div className="h-screen w-full bg-neutral-950 text-neutral-300 font-sans flex flex-col p-8 overflow-hidden selection:bg-cyan-500 selection:text-black">
@@ -45,7 +97,7 @@ export default function App() {
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse"></span>
             <span className="text-[10px] uppercase tracking-wider text-emerald-500 font-mono">Agent Active</span>
           </div>
-          <button className="px-4 py-1.5 border border-neutral-800 text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-colors flex items-center gap-2 group">
+          <button onClick={handleExportData} className="px-4 py-1.5 border border-neutral-800 text-[10px] uppercase tracking-widest hover:bg-white hover:text-black transition-colors flex items-center gap-2 group">
             <Share2 className="w-3 h-3 text-neutral-500 group-hover:text-black" />
             Export Data
           </button>
@@ -114,26 +166,72 @@ export default function App() {
 
         {/* Center Column: 3D Visualization */}
         <div className="col-span-6 relative border border-neutral-800 bg-neutral-900/20 rounded-sm overflow-hidden flex flex-col">
-          <div className="flex-1 min-h-0 relative">
-            <Viewport 
-              limit={limit} 
-              activeId={activePrime} 
-              onPointClick={handlePointClick} 
-            />
-            <div className="absolute top-4 left-4 space-y-1 pointer-events-none">
-              <div className="text-[9px] uppercase tracking-widest text-neutral-400 font-bold">
-                Visual Coordinate System: Polar Spiral
+          {activeView === 'visualization' && (
+            <div className="flex-1 min-h-0 relative">
+              <Viewport 
+                limit={limit} 
+                activeId={activePrime} 
+                onPointClick={handlePointClick} 
+              />
+              <div className="absolute top-4 left-4 space-y-1 pointer-events-none">
+                <div className="text-[9px] uppercase tracking-widest text-neutral-400 font-bold">
+                  Visual Coordinate System: Ulam Grid
+                </div>
+                <div className="text-[8px] uppercase tracking-wider text-neutral-600">
+                  Drag mouse to Rotate & Orbit • Scroll wheel to Zoom • Hover and click nodes
+                </div>
               </div>
-              <div className="text-[8px] uppercase tracking-wider text-neutral-600">
-                Drag mouse to Rotate & Orbit • Scroll wheel to Zoom • Hover and click nodes
+              <div className="absolute bottom-4 right-4 flex gap-4 text-[9px] uppercase tracking-widest text-neutral-600 pointer-events-none font-mono">
+                <span>X: {activeCoords.x.toFixed(4)}</span>
+                <span>Y: {activeCoords.y.toFixed(4)}</span>
+                <span>Z: {activeCoords.z.toFixed(4)}</span>
               </div>
             </div>
-            <div className="absolute bottom-4 right-4 flex gap-4 text-[9px] uppercase tracking-widest text-neutral-600 pointer-events-none font-mono">
-              <span>X: {activeCoords.x.toFixed(4)}</span>
-              <span>Y: {activeCoords.y.toFixed(4)}</span>
-              <span>Z: {activeCoords.z.toFixed(4)}</span>
+          )}
+          {activeView === 'patterns' && (
+            <div className="flex-1 min-h-0 p-6 overflow-y-auto custom-scrollbar space-y-4">
+              <h3 className="text-[10px] uppercase tracking-widest text-neutral-500 border-b border-neutral-800 pb-2">Pattern Analysis</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 border border-neutral-800 bg-neutral-900/40">
+                  <div className="text-[8px] uppercase tracking-widest text-neutral-600">Prime Count</div>
+                  <div className="text-xl text-white font-mono mt-1">{stats.primeCount}</div>
+                </div>
+                <div className="p-3 border border-neutral-800 bg-neutral-900/40">
+                  <div className="text-[8px] uppercase tracking-widest text-neutral-600">Average Gap</div>
+                  <div className="text-xl text-white font-mono mt-1">{stats.avgGap.toFixed(2)}</div>
+                </div>
+                <div className="p-3 border border-neutral-800 bg-neutral-900/40">
+                  <div className="text-[8px] uppercase tracking-widest text-neutral-600">Twin Pairs</div>
+                  <div className="text-xl text-white font-mono mt-1">{stats.twinCount}</div>
+                </div>
+                <div className="p-3 border border-neutral-800 bg-neutral-900/40">
+                  <div className="text-[8px] uppercase tracking-widest text-neutral-600">Max Prime</div>
+                  <div className="text-xl text-white font-mono mt-1">{stats.maxPrime}</div>
+                </div>
+              </div>
+              <p className="text-[11px] text-neutral-400 leading-relaxed">
+                Patterns view summarizes prime-density behavior in the active horizon. Increase the limit to observe changing gap statistics and twin-prime frequency.
+              </p>
             </div>
-          </div>
+          )}
+          {activeView === 'theory' && (
+            <div className="flex-1 min-h-0 p-6 overflow-y-auto custom-scrollbar space-y-4">
+              <h3 className="text-[10px] uppercase tracking-widest text-neutral-500 border-b border-neutral-800 pb-2">Theory Notes</h3>
+              <div className="text-[11px] text-neutral-300 leading-relaxed space-y-3">
+                <p>
+                  The Ulam spiral maps integers to a square lattice. Primes often align along diagonal structures, revealing non-random geometric regularities.
+                </p>
+                <p>
+                  In this workspace, each prime is projected from that lattice into the 3D scene. Selecting a prime triggers harmonic mapping for exploratory sonification.
+                </p>
+                {activePrime && (
+                  <p className="text-cyan-300">
+                    Current prime {activePrime} has properties: {activeTypes.length ? activeTypes.join(', ') : 'No special tags'}.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right Column: Assistant & Sonic Spectrum */}
@@ -145,11 +243,11 @@ export default function App() {
           <div className="h-48 shrink-0 flex flex-col">
             <h2 className="text-[10px] text-neutral-500 uppercase tracking-widest border-b border-neutral-800 pb-2 mb-4">Sonic Spectrum</h2>
             <div className="flex-1 flex items-end gap-1 px-2 mb-4">
-              {[30, 60, 45, 90, 20, 55, 70, 100, 10, 40, 65, 80].map((h, i) => (
+              {spectrum.map((level, i) => (
                 <div 
                   key={i} 
                   className="flex-1 bg-cyan-500/20 transition-all duration-300"
-                  style={{ height: `${activePrime ? (h + Math.random() * 20 - 10) : h * 0.1}%`, opacity: activePrime ? 1 : 0.2 }}
+                  style={{ height: `${Math.max(8, level * 100)}%`, opacity: audioStarted ? 1 : 0.2 }}
                 ></div>
               ))}
             </div>
@@ -172,7 +270,7 @@ export default function App() {
         <div className="flex gap-8 items-center h-full">
           {!audioStarted ? (
             <button 
-              onClick={() => { audioEngine.start(); setAudioStarted(true); }}
+              onClick={() => { void startAudio(); }}
               className="flex items-center gap-3 group px-4 py-2 bg-white text-black text-[10px] font-bold uppercase tracking-[0.2em] transition-all"
             >
               <div className="w-0 h-0 border-t-[4px] border-t-transparent border-l-[6px] border-l-black border-b-[4px] border-b-transparent"></div>
@@ -199,9 +297,9 @@ export default function App() {
 
         <nav className="flex gap-8 items-center h-full">
           <div className="flex gap-6">
-            <button className="text-[10px] uppercase tracking-widest text-white border-b border-white pb-1 transition-all">Visualization</button>
-            <button className="text-[10px] uppercase tracking-widest text-neutral-600 hover:text-white transition-all">Patterns</button>
-            <button className="text-[10px] uppercase tracking-widest text-neutral-600 hover:text-white transition-all">Theory</button>
+            <button onClick={() => setActiveView('visualization')} className={`text-[10px] uppercase tracking-widest pb-1 transition-all ${activeView === 'visualization' ? 'text-white border-b border-white' : 'text-neutral-600 hover:text-white'}`}>Visualization</button>
+            <button onClick={() => setActiveView('patterns')} className={`text-[10px] uppercase tracking-widest pb-1 transition-all ${activeView === 'patterns' ? 'text-white border-b border-white' : 'text-neutral-600 hover:text-white'}`}>Patterns</button>
+            <button onClick={() => setActiveView('theory')} className={`text-[10px] uppercase tracking-widest pb-1 transition-all ${activeView === 'theory' ? 'text-white border-b border-white' : 'text-neutral-600 hover:text-white'}`}>Theory</button>
           </div>
           <div className="h-4 w-px bg-neutral-800"></div>
           <span className="text-[9px] font-mono text-neutral-700 uppercase tracking-widest">Sys_Status: Operational</span>
@@ -227,7 +325,7 @@ export default function App() {
             </p>
             
             <button 
-              onClick={() => { audioEngine.start(); setAudioStarted(true); }}
+              onClick={() => { void startAudio(); }}
               className="px-12 py-3 bg-white text-black font-bold text-[10px] tracking-[0.3em] uppercase hover:bg-cyan-400 hover:text-black transition-all shadow-[0_0_30px_rgba(255,255,255,0.1)]"
             >
               Authorize Frequency Access
@@ -238,5 +336,4 @@ export default function App() {
     </div>
   );
 }
-
 

@@ -17,16 +17,38 @@ export function getPrimes(limit: number): number[] {
 }
 
 export function getUlamCoordinates(n: number): [number, number, number] {
-  // Classic 2D spiral expanded to 3D
-  // Using polar coordinates for a more "harmonic" 3D spiral
-  const angle = Math.sqrt(n) * Math.PI * 2;
-  const radius = Math.sqrt(n);
-  const height = n * 0.01;
-  return [
-    Math.cos(angle) * radius,
-    height,
-    Math.sin(angle) * radius
-  ];
+  if (n <= 1) return [0, 0, 0];
+
+  // True integer Ulam spiral grid coordinates, mapped to x/z plane
+  const k = Math.ceil((Math.sqrt(n) - 1) / 2);
+  let t = 2 * k + 1;
+  let m = t * t;
+  t -= 1;
+
+  let x = 0;
+  let z = 0;
+
+  if (n >= m - t) {
+    x = k - (m - n);
+    z = -k;
+  } else {
+    m -= t;
+    if (n >= m - t) {
+      x = -k;
+      z = -k + (m - n);
+    } else {
+      m -= t;
+      if (n >= m - t) {
+        x = -k + (m - n);
+        z = k;
+      } else {
+        x = k;
+        z = k - (m - n - t);
+      }
+    }
+  }
+
+  return [x, 0, z];
 }
 
 export function isMersenne(p: number): boolean {
@@ -53,4 +75,3 @@ export function getPrimeType(p: number): string[] {
   if (p === 2) types.push("Even Prime");
   return types;
 }
-
