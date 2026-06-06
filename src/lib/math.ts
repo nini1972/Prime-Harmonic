@@ -54,3 +54,49 @@ export function getPrimeType(p: number): string[] {
   return types;
 }
 
+export interface PrimeGapInfo {
+  gap: number;
+  probability: number; // empirical frequency percentage
+}
+
+export function getPrimeGapInfo(p: number | null, limit: number): PrimeGapInfo {
+  const primes = getPrimes(limit);
+  if (primes.length < 2) {
+    return { gap: 0, probability: 0 };
+  }
+
+  // Calculate all empirical gaps in the current horizon
+  const gaps: number[] = [];
+  const gapCounts: { [key: number]: number } = {};
+  for (let i = 0; i < primes.length - 1; i++) {
+    const g = primes[i + 1] - primes[i];
+    gaps.push(g);
+    gapCounts[g] = (gapCounts[g] || 0) + 1;
+  }
+
+  if (!p) {
+    // If no active prime is selected, return the average gap statistics
+    const avgGap = gaps.reduce((sum, val) => sum + val, 0) / gaps.length;
+    // Probability of the average/most common gap
+    const mostCommonGap = Object.keys(gapCounts).reduce((a, b) => 
+      gapCounts[Number(a)] > gapCounts[Number(b)] ? a : b
+    );
+    const prob = (gapCounts[Number(mostCommonGap)] / gaps.length) * 100;
+    return { gap: Math.round(avgGap * 10) / 10, probability: prob };
+  }
+
+  // Find the exact gap for the selected active prime
+  // First, find the next prime after p
+  let nextP = p + 1;
+  while (!isPrime(nextP)) {
+    nextP++;
+  }
+  const activeGap = nextP - p;
+
+  // Empirical probability of this gap occurring in our horizon
+  const count = gapCounts[activeGap] || 0;
+  const probability = gaps.length > 0 ? (count / gaps.length) * 100 : 0;
+
+  return { gap: activeGap, probability };
+}
+

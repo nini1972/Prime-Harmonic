@@ -1,10 +1,7 @@
-import { GoogleGenAI } from "@google/genai";
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Send, Zap, BookOpen, Brain } from 'lucide-react';
 import { cn } from '../lib/utils';
-
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 interface Message {
   role: 'user' | 'assistant';
@@ -38,20 +35,23 @@ export const Assistant = ({ currentPrime }: AssistantProps) => {
     setLoading(true);
 
     try {
-      const response = await genAI.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [...messages, userMsg].map(m => m.content).join('\n'),
-        config: {
-          systemInstruction: `You are a mathematical assistant specialized in number theory and primes. 
-          The user is interacting with a 3D visualization of primes. 
-          Current focused prime: ${currentPrime || 'None'}.
-          If a prime is selected, you can reference if it is a Mersenne prime, part of a twin prime pair, or other interesting properties.
-          Keep responses concise, insightful, and slightly mystical. Encourage the user to explore specific gaps or sequences like the Fibonacci sequence's intersection with primes.
-          Maintain a "Technical Agent" tone: analytical, cold but insightful.`
-        }
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [...messages, userMsg],
+          currentPrime,
+        }),
       });
 
-      setMessages(prev => [...prev, { role: 'assistant', content: `ANALYSIS: ${response.text || 'Process timeout.'}` }]);
+      if (!response.ok) {
+        throw new Error('Server response was not ok');
+      }
+
+      const data = await response.json();
+      setMessages(prev => [...prev, { role: 'assistant', content: `ANALYSIS: ${data.text || 'Process timeout.'}` }]);
     } catch (error) {
       setMessages(prev => [...prev, { role: 'assistant', content: 'SYSTEM ERROR: Buffer overflow in number stream.' }]);
     } finally {

@@ -1,10 +1,11 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { Viewport } from './components/Viewport';
 import { Assistant } from './components/Assistant';
+import { SonicSpectrum } from './components/SonicSpectrum';
 import { audioEngine } from './lib/audio';
 import { motion } from 'motion/react';
 import { Play, Volume2, Info, Maximize, Activity, Share2 } from 'lucide-react';
-import { getPrimeType, getUlamCoordinates } from './lib/math';
+import { getPrimeType, getUlamCoordinates, getPrimeGapInfo } from './lib/math';
 
 const MemoizedViewport = React.memo(Viewport);
 
@@ -20,6 +21,10 @@ export default function App() {
     const [x, y, z] = getUlamCoordinates(activePrime);
     return { x, y, z };
   }, [activePrime]);
+
+  const gapInfo = useMemo(() => {
+    return getPrimeGapInfo(activePrime, limit);
+  }, [activePrime, limit]);
 
   const handlePointClick = useCallback((n: number) => {
     setActivePrime(n);
@@ -144,14 +149,8 @@ export default function App() {
           
           <div className="h-48 shrink-0 flex flex-col">
             <h2 className="text-[10px] text-neutral-500 uppercase tracking-widest border-b border-neutral-800 pb-2 mb-4">Sonic Spectrum</h2>
-            <div className="flex-1 flex items-end gap-1 px-2 mb-4">
-              {[30, 60, 45, 90, 20, 55, 70, 100, 10, 40, 65, 80].map((h, i) => (
-                <div 
-                  key={i} 
-                  className="flex-1 bg-cyan-500/20 transition-all duration-300"
-                  style={{ height: `${activePrime ? (h + Math.random() * 20 - 10) : h * 0.1}%`, opacity: activePrime ? 1 : 0.2 }}
-                ></div>
-              ))}
+            <div className="flex-1 min-h-0">
+              <SonicSpectrum audioStarted={audioStarted} />
             </div>
             <div className="grid grid-cols-2 gap-2">
                <div className="p-2 border border-neutral-800 bg-neutral-900/50">
@@ -191,8 +190,14 @@ export default function App() {
               <span className="text-[10px] font-mono text-neutral-400">{activePrime || 'Static'}</span>
             </div>
             <div className="flex flex-col">
+              <span className="text-[8px] text-neutral-600 uppercase tracking-tighter">Prime Gap (g)</span>
+              <span className="text-[10px] font-mono text-neutral-400">
+                {activePrime ? `${gapInfo.gap}` : `Avg: ${gapInfo.gap}`}
+              </span>
+            </div>
+            <div className="flex flex-col">
               <span className="text-[8px] text-neutral-600 uppercase tracking-tighter">Gap Probability</span>
-              <span className="text-[10px] font-mono text-neutral-400">0.00142%</span>
+              <span className="text-[10px] font-mono text-neutral-400">{gapInfo.probability.toFixed(3)}%</span>
             </div>
           </div>
         </div>
