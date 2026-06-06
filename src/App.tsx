@@ -120,8 +120,13 @@ export default function App() {
               activeId={activePrime} 
               onPointClick={handlePointClick} 
             />
-            <div className="absolute top-4 left-4 text-[9px] uppercase tracking-widest text-neutral-600 pointer-events-none">
-              Visual Coordinate System: Polar Spiral
+            <div className="absolute top-4 left-4 space-y-1 pointer-events-none">
+              <div className="text-[9px] uppercase tracking-widest text-neutral-400 font-bold">
+                Visual Coordinate System: Polar Spiral
+              </div>
+              <div className="text-[8px] uppercase tracking-wider text-neutral-600">
+                Drag mouse to Rotate & Orbit • Scroll wheel to Zoom • Hover and click nodes
+              </div>
             </div>
             <div className="absolute bottom-4 right-4 flex gap-4 text-[9px] uppercase tracking-widest text-neutral-600 pointer-events-none font-mono">
               <span>X: {activeCoords.x.toFixed(4)}</span>

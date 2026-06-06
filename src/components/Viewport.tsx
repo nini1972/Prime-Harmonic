@@ -1,6 +1,6 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Stars, Text, Float } from '@react-three/drei';
+import { OrbitControls, Stars, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { getPrimes, getUlamCoordinates } from '../lib/math';
 
@@ -13,10 +13,17 @@ interface PrimePointProps {
 
 const PrimePoint = ({ n, position, isActive, onClick }: PrimePointProps) => {
   const meshRef = useRef<THREE.Mesh>(null);
+  const [hovered, setHovered] = useState(false);
   
   useFrame((state) => {
-    if (meshRef.current && isActive) {
-      meshRef.current.scale.setScalar(1.5 + Math.sin(state.clock.elapsedTime * 8) * 0.1);
+    if (meshRef.current) {
+      if (isActive) {
+        meshRef.current.scale.setScalar(1.5 + Math.sin(state.clock.elapsedTime * 8) * 0.15);
+      } else if (hovered) {
+        meshRef.current.scale.setScalar(1.8);
+      } else {
+        meshRef.current.scale.setScalar(1.0);
+      }
     }
   });
 
@@ -28,21 +35,30 @@ const PrimePoint = ({ n, position, isActive, onClick }: PrimePointProps) => {
           e.stopPropagation();
           onClick(n);
         }}
-        onPointerOver={() => (document.body.style.cursor = 'pointer')}
-        onPointerOut={() => (document.body.style.cursor = 'auto')}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          setHovered(true);
+          document.body.style.cursor = 'pointer';
+        }}
+        onPointerOut={(e) => {
+          e.stopPropagation();
+          setHovered(false);
+          document.body.style.cursor = 'auto';
+        }}
       >
-        <sphereGeometry args={[isActive ? 0.2 : 0.08, 16, 16]} />
+        {/* Make the sphere noticeably larger so it is easy to click (0.16 radius instead of 0.08) */}
+        <sphereGeometry args={[isActive ? 0.35 : 0.16, 16, 16]} />
         <meshStandardMaterial 
-          color={isActive ? "#06b6d4" : "#444444"} 
-          emissive={isActive ? "#06b6d4" : "#000000"}
-          emissiveIntensity={isActive ? 4 : 0}
+          color={isActive ? "#06b6d4" : (hovered ? "#22d3ee" : "#555555")} 
+          emissive={isActive ? "#06b6d4" : (hovered ? "#06b6d4" : "#000000")}
+          emissiveIntensity={isActive ? 4 : (hovered ? 2.5 : 0)}
         />
       </mesh>
-      {isActive && (
+      {(isActive || hovered) && (
         <Text
-          position={[0, 0.6, 0]}
-          fontSize={0.3}
-          color="#ffffff"
+          position={[0, 0.7, 0]}
+          fontSize={0.32}
+          color={isActive ? "#ffffff" : "#22d3ee"}
           anchorX="center"
           anchorY="middle"
           font="https://fonts.gstatic.com/s/jetbrainsmono/v13/t6pt271361WkqNrmp0XW3uD1E__U920.woff2"
