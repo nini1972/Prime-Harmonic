@@ -90,7 +90,7 @@ export const Viewport = ({ limit, activeId, onPointClick }: ViewportProps) => {
   }, [primePoints]);
 
   return (
-    <div className="w-full h-full bg-[#0a0a0a]">
+    <div className="w-full h-full bg-[#0a0a0a]" onContextMenu={(e) => e.preventDefault()}>
       <Canvas camera={{ position: [20, 20, 20], fov: 45 }}>
         <color attach="background" args={['#0a0a0a']} />
         <fog attach="fog" args={['#0a0a0a', 15, 60]} />
