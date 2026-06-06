@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Stars, Text } from '@react-three/drei';
+import { Html, OrbitControls, Stars } from '@react-three/drei';
 import * as THREE from 'three';
 import { getPrimes, getUlamCoordinates } from '../lib/math';
 
@@ -55,16 +55,24 @@ const PrimePoint = ({ n, position, isActive, onClick }: PrimePointProps) => {
         />
       </mesh>
       {(isActive || hovered) && (
-        <Text
-          position={[0, 0.7, 0]}
-          fontSize={0.32}
-          color={isActive ? "#ffffff" : "#22d3ee"}
-          anchorX="center"
-          anchorY="middle"
-          font="https://fonts.gstatic.com/s/jetbrainsmono/v13/t6pt271361WkqNrmp0XW3uD1E__U920.woff2"
-        >
-          {n}
-        </Text>
+        <Html position={[0, 0.9, 0]} center distanceFactor={8} style={{ pointerEvents: 'none' }}>
+          <div
+            style={{
+              color: '#ffffff',
+              background: 'rgba(8, 47, 73, 0.85)',
+              border: '1px solid rgba(34, 211, 238, 0.9)',
+              borderRadius: '4px',
+              fontSize: '13px',
+              fontWeight: 700,
+              lineHeight: 1,
+              padding: '4px 7px',
+              textShadow: '0 0 6px rgba(0, 0, 0, 0.9)',
+              boxShadow: '0 0 14px rgba(34, 211, 238, 0.35)',
+            }}
+          >
+            {n}
+          </div>
+        </Html>
       )}
     </group>
   );
@@ -112,12 +120,7 @@ export const Viewport = ({ limit, activeId, onPointClick }: ViewportProps) => {
           
           <line>
             <bufferGeometry>
-              <bufferAttribute 
-                attach="attributes-position"
-                count={primePoints.length}
-                array={linePoints}
-                itemSize={3}
-              />
+              <bufferAttribute attach="attributes-position" args={[linePoints, 3]} />
             </bufferGeometry>
             <lineBasicMaterial color="#06b6d4" transparent opacity={0.1} />
           </line>
