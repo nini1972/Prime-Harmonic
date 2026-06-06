@@ -65,11 +65,16 @@ class AudioEngine {
     if (!this.started) return new Array(binCount).fill(0);
 
     const raw = this.analyser.getValue();
-    if (!raw || typeof raw === "number" || raw.length === 0) {
+    if (!raw || typeof raw === "number") {
       return new Array(binCount).fill(0);
     }
 
-    const bins = Array.from(raw);
+    const bins = Array.isArray(raw)
+      ? raw.flatMap((channel) => Array.from(channel))
+      : Array.from(raw);
+    if (bins.length === 0) {
+      return new Array(binCount).fill(0);
+    }
     const chunkSize = Math.max(1, Math.floor(bins.length / binCount));
 
     return Array.from({ length: binCount }, (_, i) => {
