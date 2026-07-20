@@ -1,9 +1,9 @@
 
 
 
-[![Watch the showcase video](https://github.com/nini1972/Prime-Harmonic/blob/main/docs/scene_4_095a9e88a4b41ba7.png)](https://nini1972.github.io/Prime-Harmonic/)
-
-
+<a href="https://nini1972.github.io/Prime-Harmonic/">
+  <img src="./docs/scene_4_095a9e88a4b41ba7.png" width="300" alt="Watch the showcase video">
+</a>
 
 
 
