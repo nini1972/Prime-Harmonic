@@ -1,5 +1,10 @@
 
-[![Watch the showcase video]()](https://nini1972.github.io/Prime-Harmonic/)
+
+
+[![Watch the showcase video](https://github.com/nini1972/Prime-Harmonic/blob/main/docs/scene_4_095a9e88a4b41ba7.png)](https://nini1972.github.io/Prime-Harmonic/)
+
+
+
 
 
 
